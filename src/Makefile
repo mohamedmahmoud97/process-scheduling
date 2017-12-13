@@ -8,12 +8,12 @@ reaction: scheduling.h scheduling.c
 	$(CC) $(CFLAGS) -o scheduling scheduling.c 
 
 run: scheduling
-	./scheduling 0
-	./scheduling 0
-	./scheduling 20
-	./scheduling 20
-	./scheduling 40
-	./scheduling 40
+	./scheduling 0 sample
+	./scheduling 0 sample
+	./scheduling 1 5 sample
+	./scheduling 1 7 sample
+	./scheduling 1 10 sample
+	./scheduling 1 20 sample
 
 clean:
 	$(RM) scheduling

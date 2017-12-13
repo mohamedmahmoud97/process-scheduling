@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct process{
+typedef struct proc{
     int id;
     int CPU_time;
     int IO_time;
     int arrival_time;
     int turnaroud_time;
-}process;
+}proc;
 
-void readInputFile(FILE*inFile);
+struct proc **process;
+int no_proc=0;
+
+void readInputFile(FILE*inFile, char*fileName);
