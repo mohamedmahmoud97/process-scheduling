@@ -9,11 +9,6 @@ reaction: scheduling.h scheduling.c
 
 run: scheduling
 	./scheduling 0 sample
-	./scheduling 0 sample
-	./scheduling 1 5 sample
-	./scheduling 1 7 sample
-	./scheduling 1 10 sample
-	./scheduling 1 20 sample
 
 clean:
 	$(RM) scheduling
