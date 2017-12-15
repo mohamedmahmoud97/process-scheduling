@@ -23,10 +23,10 @@ int main(int argc, char *argv[])
 
 	if(algorithm==1){
 		quantum_time = atoi(argv[2]);
-		fileName = argv[3];	
+		fileName = argv[3];
 	}
 	else{
-		fileName = argv[2];	
+		fileName = argv[2];
 	}
 
 	readInputFile(inFile, fileName);
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 void readInputFile(FILE*inFile, char*fileName){
 
 	bool fileFound = false;
-	int temp; 
+	int temp;
 
 	//open file and set mode to read
 	do
@@ -94,7 +94,7 @@ void FCFS(FILE*outFile){
 	bool fileFound = false;
 	int simulation_time = 0;
 
-	//open file and set mode to write 
+	//open file and set mode to write
 	do
 	{
     	outFile = fopen("sampleFCFS.out","w");
@@ -133,7 +133,7 @@ void FCFS(FILE*outFile){
 		//set flag to zero each loop to check if all done
 		flagDone = 0;
 
-		//loop on all processes that hasn't started yet each time 
+		//loop on all processes that hasn't started yet each time
 		//to check on the arrival time with the current simulation time
 		for (int i = 0; i < no_proc-1; ++i)
 		{
@@ -143,13 +143,13 @@ void FCFS(FILE*outFile){
 				process[i]->state = READY;
 			}
 		}
-		//loop on all processes in blocked state each time 
+		//loop on all processes in blocked state each time
 		//to check on the arrival time with the current simulation time
 		for (int i = 0; i < no_proc-1; ++i)
 		{
 			if (process[i]->ready_time==simulation_time && strcmp(process[i]->state,BLOCKED)==0)
 			{
-				//here should remove this process from the block queue
+				deleteB(process[i]->id);
 				insertR(process[i]->id);
 				process[i]->state = READY;
 			}
@@ -157,15 +157,24 @@ void FCFS(FILE*outFile){
 
 		//make the first process be the first running one and save id in now
 		if (simulation_time == 0){
-			now = removeDataR();
+			int k=0;
+			while(readyArray[k]==-99){
+				k++;
+			}
+			now = readyArray[k];
+			deleteR(now);
 			process[now]->state = RUNNING;
 			process[now]->start_time = simulation_time;
 		}
 
 		//if no process running and there is a process in queueR
-		if (flagRun==0 && sizeR()!=0){
-			now = getMin(readyArray,no_proc-1);
-			now = removeDataR();
+		if (flagRun==0 && itemCountR!=0){
+			int k=0;
+			while(readyArray[k]==-99){
+				k++;
+			}
+			now = readyArray[k];
+			deleteR(now);
 			process[now]->state = RUNNING;
 			process[now]->start_time = simulation_time;
 			flagRun = 1;
@@ -206,28 +215,27 @@ void FCFS(FILE*outFile){
 			tempNow = now;
 
 			//set the next process in now
-			if(sizeR()==0){
+			if(itemCountR==0){
 				flagRun = 0;
 			}
 			else{
-				now = removeDataR();
-				//now = getMin(readyArray,no_proc-1);
+				now = readyArray[0];
+				deleteR(now);
 				process[now]->state = RUNNING;
 				process[now]->start_time = simulation_time + 1;
 			}
 		}
-
 		else if (process[now]->IO_done == true && timeTaken==process[now]->CPU_time){
 			//make the current state finished and calculate the turnaround time
 			process[now]->turnaround_time = simulation_time-process[now]->arrival_time+1;
 			process[now]->state = FINISHED;
-			
-			if(sizeR()==0){
+
+			if(itemCountR==0){
 				flagRun = 0;
 			}
 			else{
-				now = removeDataR();
-				//now = getMin(readyArray,no_proc-1);
+				now = readyArray[0];
+				deleteR(now);
 				process[now]->state = RUNNING;
 				process[now]->start_time = simulation_time + 1;
 			}
@@ -244,9 +252,9 @@ void FCFS(FILE*outFile){
 		simulation_time++;
 	}
 
-	//print in the file the 
+	//print in the file the
 	fprintf(outFile, "\nFinishing time: %d\n", simulation_time-1);
-	fprintf(outFile, "CPU Utilization: %.3f\n", (busy_time*1.0)/(simulation_time));	
+	fprintf(outFile, "CPU Utilization: %.3f\n", (busy_time*1.0)/(simulation_time));
 	for (int i = 0; i < no_proc-1; ++i){
 		fprintf(outFile, "Turnaround time of process %d: %d\n", process[i]->id, process[i]->turnaround_time);
 
@@ -278,74 +286,136 @@ int fpeek(FILE *stream)
     return c;
 }
 
-bool isEmptyR() {
-   return itemCountR == 0;
+/* Function to create an empty priority queue */
+void createR(){
+    frontR = rearR = -1;
 }
 
-bool isFullR() {
-   return itemCountR == no_proc-1;
+/* Function to insert value into priority queue */
+void insertR(int data){
+    if (rearR >= no_proc - 2){
+        printf("\nQueue overflow no more elements can be inserted");
+        return;
+    }
+    if ((frontR == -1) && (rearR == -1)){
+        frontR++;
+        rearR++;
+        readyArray[rearR] = data;
+        return;
+    }
+    else
+        checkR(data);
+    rearR++;
+		itemCountR++;
 }
 
-int sizeR() {
-   return itemCountR;
-}  
+/* Function to check priority and place element */
+void checkR(int data){
+    int i,j;
 
-void insertR(int id) {
-
-   if(!isFullR()) {
-	
-      if(rearR == no_proc-1-1) {
-         rearR = -1;            
-      }       
-
-      readyArray[++rearR] = id;
-      itemCountR++;
-   }
+    for (i = 0; i <= rearR; i++){
+        if (data < readyArray[i]){
+            for (j = rearR + 1; j > i; j--){
+                readyArray[j] = readyArray[j - 1];
+            }
+            readyArray[i] = data;
+            return;
+        }
+    }
+    readyArray[i] = data;
 }
 
-int removeDataR() {
-   int data = readyArray[frontR++];
-	
-   if(frontR == no_proc-1) {
-      frontR = 0;
-   }
-	
-   itemCountR--;
-   return data;  
+/* Function to delete an element from queue */
+void deleteR(int data){
+		int i;
+
+    if ((frontR==-1) && (rearR==-1)){
+        printf("\nQueue is empty no elements to delete");
+        return;
+    }
+    for (i = 0; i <= rearR; i++){
+        if (data == readyArray[i]){
+            for (; i < rearR; i++){
+                readyArray[i] = readyArray[i + 1];
+            }
+
+        readyArray[i] = -99;
+
+        rearR--;
+
+        if (rearR == -1)
+            frontR = -1;
+
+				itemCountR--;
+				return;
+			}
+    }
+    printf("\n%d not found in queue to delete", data);
 }
 
-bool isEmptyB() {
-   return itemCountB == 0;
+/* Function to create an empty priority queue */
+void createB(){
+    frontB = rearB = -1;
 }
 
-bool isFullB() {
-   return itemCountB == no_proc-1;
+/* Function to insert value into priority queue */
+void insertB(int data){
+    if (rearB >= no_proc - 2){
+        printf("\nQueue overflow no more elements can be inserted");
+        return;
+    }
+    if ((frontB == -1) && (rearB == -1)){
+        frontB++;
+        rearB++;
+        readyArray[rearB] = data;
+        return;
+    }
+    else
+        checkB(data);
+    rearB++;
+		itemCountB++;
 }
 
-int sizeB() {
-   return itemCountB;
-}  
+/* Function to check priority and place element */
+void checkB(int data){
+    int i,j;
 
-void insertB(int id) {
-
-   if(!isFullB()) {
-	
-      if(rearB == no_proc-1-1) {
-         rearB = -1;            
-      }       
-
-      blockedArray[++rearB] = id;
-      itemCountB++;
-   }
+    for (i = 0; i <= rearB; i++){
+        if (data < readyArray[i]){
+            for (j = rearB + 1; j > i; j--){
+                readyArray[j] = readyArray[j - 1];
+            }
+            readyArray[i] = data;
+            return;
+        }
+    }
+    readyArray[i] = data;
 }
 
-int removeDataB() {
-   int data = blockedArray[frontB++];
-	
-   if(frontB == no_proc-1) {
-      frontB = 0;
-   }
-	
-   itemCountB--;
-   return data;  
+/* Function to delete an element from queue */
+void deleteB(int data){
+		int i;
+
+    if ((frontB==-1) && (rearB==-1)){
+        printf("\nQueue is empty no elements to delete");
+        return;
+    }
+    for (i = 0; i <= rearB; i++){
+        if (data == readyArray[i]){
+            for (; i < rearB; i++){
+                readyArray[i] = readyArray[i + 1];
+            }
+
+        readyArray[i] = -99;
+
+        rearB--;
+
+        if (rearB == -1)
+            frontB = -1;
+
+				itemCountB--;
+				return;
+			}
+    }
+    printf("\n%d not found in queue to delete", data);
 }
