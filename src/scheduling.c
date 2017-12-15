@@ -211,11 +211,18 @@ void FCFS(FILE*outFile){
 			process[now]->state = BLOCKED;
 			tempNow = now;
 
+			if (process[now]->IO_time==0)
+			{
+				now = tempNow;
+				process[now]->state = RUNNING;
+				process[now]->start_time = simulation_time + 1;
+			}
+
 			//set the next process in now
-			if(itemCountR==0){
+			else if(itemCountR==0){
 				flagRun = 0;
 			}
-			else{
+			else if(itemCountR!=0){
 				now = readyArray[frontR];
 				deleteR(now);
 				process[now]->state = RUNNING;
@@ -245,7 +252,7 @@ void FCFS(FILE*outFile){
 			break;
 		}
 
-		sleep(0.5);
+		//sleep(0.5);
 		simulation_time++;
 	}
 

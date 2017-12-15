@@ -8,7 +8,7 @@ scheduling: scheduling.h scheduling.c
 	$(CC) $(CFLAGS) -o scheduling scheduling.c 
 
 run: scheduling
-	
+	./scheduling 0 sample
 	./scheduling 1 1 sample
 
 clean:
