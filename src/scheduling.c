@@ -34,13 +34,17 @@ int main(int argc, char *argv[])
 	blockedArray = malloc((no_proc-1) * sizeof(int));
 	readyArray = malloc((no_proc-1) * sizeof(int));
 
+	rearR=rearB=frontR=frontB=-1;
+
 	if(algorithm==0){
 		printf("Algorithm will be used is FCFS\n");
 		FCFS(outFile);
+		free(process);
 	}
 	else if(algorithm==1){
 		printf("Algorithm will be used is RR\n");
 		RR(outFile,quantum_time);
+		free(process);
 	}
 
 	return 0;
@@ -125,6 +129,7 @@ void FCFS(FILE*outFile){
 	{
 		process[i]->IO_done = false;
 		process[i]->state = NOTARRIVED;
+		process[i]->ready_time = -1;
 	}
 
 	//the main loop of the running scheduling
@@ -157,11 +162,7 @@ void FCFS(FILE*outFile){
 
 		//make the first process be the first running one and save id in now
 		if (simulation_time == 0){
-			int k=0;
-			while(readyArray[k]==-99){
-				k++;
-			}
-			now = readyArray[k];
+			now = readyArray[frontR];
 			deleteR(now);
 			process[now]->state = RUNNING;
 			process[now]->start_time = simulation_time;
@@ -169,11 +170,7 @@ void FCFS(FILE*outFile){
 
 		//if no process running and there is a process in queueR
 		if (flagRun==0 && itemCountR!=0){
-			int k=0;
-			while(readyArray[k]==-99){
-				k++;
-			}
-			now = readyArray[k];
+			now = readyArray[frontR];
 			deleteR(now);
 			process[now]->state = RUNNING;
 			process[now]->start_time = simulation_time;
@@ -219,11 +216,13 @@ void FCFS(FILE*outFile){
 				flagRun = 0;
 			}
 			else{
-				now = readyArray[0];
+				now = readyArray[frontR];
 				deleteR(now);
 				process[now]->state = RUNNING;
 				process[now]->start_time = simulation_time + 1;
 			}
+
+			process[tempNow]->IO_done = true;
 		}
 		else if (process[now]->IO_done == true && timeTaken==process[now]->CPU_time){
 			//make the current state finished and calculate the turnaround time
@@ -234,14 +233,12 @@ void FCFS(FILE*outFile){
 				flagRun = 0;
 			}
 			else{
-				now = readyArray[0];
+				now = readyArray[frontR];
 				deleteR(now);
 				process[now]->state = RUNNING;
 				process[now]->start_time = simulation_time + 1;
 			}
 		}
-
-		process[tempNow]->IO_done = true;
 
 		if (flagDone == 0)
 		{
@@ -265,6 +262,201 @@ void FCFS(FILE*outFile){
 
 void RR(FILE*outFile, int quantum_time){
 
+	bool fileFound = false;
+	int simulation_time = 0;
+
+	//open file and set mode to write
+	do
+	{
+    	outFile = fopen("sampleRR.out","w");
+    	if(!outFile)
+    	{
+        	printf("File Not Found!!\n");
+           	fileFound=true;
+    	}
+    	else
+        	fileFound=false;
+
+	}while(fileFound);
+
+	//a variable to hold the id of the current process
+	int now = -1;
+
+	//a flag to know if there is a process not done
+	int flagDone = 0;
+
+	//clear flag if no process is running
+	int	flagRun = 1;
+
+	//make a counter for calculating no_cycles CPU is busy
+	int busy_time = 0;
+
+	//a counter to indicate the remaining time before reaching quantum time
+	int quantum_remaining_time = quantum_time;
+
+	//set all processes IO_done attribute to false
+	for (int i = 0; i < no_proc-1; ++i)
+	{
+		process[i]->IO_done = false;
+		process[i]->state = NOTARRIVED;
+		process[i]->ready_time = -1;
+		process[i]->remaining_time = process[i]->CPU_time;
+	}
+
+	//the main loop of the running scheduling
+	while(true){
+
+		//set flag to zero each loop to check if all done
+		flagDone = 0;
+
+		//loop on all processes that hasn't started yet each time
+		//to check on the arrival time with the current simulation time
+		for (int i = 0; i < no_proc-1; ++i)
+		{
+			if (process[i]->arrival_time == simulation_time)
+			{
+				insertR(process[i]->id);
+				process[i]->state = READY;
+			}
+		}
+		//loop on all processes in blocked state each time
+		//to check on the arrival time with the current simulation time
+		for (int i = 0; i < no_proc-1; ++i)
+		{
+			if (process[i]->ready_time==simulation_time && strcmp(process[i]->state,BLOCKED)==0)
+			{
+				deleteB(process[i]->id);
+				insertR(process[i]->id);
+				process[i]->state = READY;
+				process[i]->remaining_time = process[i]->CPU_time;
+			}
+		}
+
+		//make the first process be the first running one and save id in now
+		if (simulation_time == 0){
+			now = readyArray[frontR];
+			deleteR(now);
+			process[now]->state = RUNNING;
+			process[now]->start_time = simulation_time;
+		}
+
+		//if no process running and there is a process in queueR
+		if (flagRun==0 && itemCountR!=0){
+			now = readyArray[frontR];
+			deleteR(now);
+			process[now]->remaining_time = process[now]->CPU_time;
+			process[now]->state = RUNNING;
+			process[now]->start_time = simulation_time;
+			flagRun = 1;
+		}
+
+		//save the now that will be changed in a temp variable
+		int tempNow;
+
+		//##############################################//
+		//print in the file
+		fprintf(outFile, "%d: ", simulation_time);
+		printf("%d: ", simulation_time);
+		for (int i = 0; i < no_proc-1; ++i)
+		{
+			if(strcmp(process[i]->state,FINISHED)!=0 && strcmp(process[i]->state,NOTARRIVED)!=0){
+				printf("%d: ", process[i]->id);
+				printf("%s   ", process[i]->state);
+				fprintf(outFile, "%d: ", process[i]->id);
+				fprintf(outFile, "%s  ", process[i]->state);
+			}
+			if (strcmp(process[i]->state,FINISHED)!=0){
+				flagDone = 1;
+			}
+			if (strcmp(process[i]->state,RUNNING)==0){
+				busy_time++;
+			}
+		}
+		fprintf(outFile, "\n");
+		printf("\n");
+		//#############################################//
+
+		//decrement the remaining time of the process
+		//and decrement the quantum time
+		quantum_remaining_time--;
+		process[now]->remaining_time--;
+
+		
+		//check if quantum time finished or CPU time finished or IO done or not
+		if (quantum_remaining_time==0 && process[now]->remaining_time!=0)
+		{
+			//insert the process in ready queue
+			insertR(process[now]->id);
+			process[now]->state = READY;
+
+			//set the next process in now
+			if(itemCountR==0){
+				flagRun = 0;
+			}
+			else{
+				now = readyArray[frontR];
+				deleteR(now);
+				process[now]->state = RUNNING;
+				process[now]->start_time = simulation_time + 1;
+				quantum_remaining_time = quantum_time;
+			}
+		}
+		else if(process[now]->IO_done == false && process[now]->remaining_time==0){
+			//block  the current process and add it to blockedArray
+			insertB(now);
+			process[now]->ready_time = simulation_time + process[now]->IO_time + 1;
+			process[now]->state = BLOCKED;
+			tempNow = now;
+
+			//set the next process in now
+			if(itemCountR==0){
+				flagRun = 0;
+			}
+			else{
+				now = readyArray[frontR];
+				deleteR(now);
+				process[now]->state = RUNNING;
+				process[now]->start_time = simulation_time + 1;
+				quantum_remaining_time = quantum_time;
+			}
+		}
+		else if (process[now]->IO_done == true && process[now]->remaining_time==0){
+			//make the current state finished and calculate the turnaround time
+			process[now]->turnaround_time = simulation_time-process[now]->arrival_time+1;
+			process[now]->state = FINISHED;
+
+			if(itemCountR==0){
+				flagRun = 0;
+			}
+			else{
+				now = readyArray[frontR];
+				deleteR(now);
+				process[now]->state = RUNNING;
+				process[now]->start_time = simulation_time + 1;
+				quantum_remaining_time = quantum_time;
+			}
+		}
+
+		process[tempNow]->IO_done = true;
+
+		if (flagDone == 0)
+		{
+			break;
+		}
+
+		sleep(0.25);
+		simulation_time++;
+	}
+
+	//print in the file the
+	fprintf(outFile, "\nFinishing time: %d\n", simulation_time-1);
+	fprintf(outFile, "CPU Utilization: %.3f\n", (busy_time*1.0)/(simulation_time));
+	for (int i = 0; i < no_proc-1; ++i){
+		fprintf(outFile, "Turnaround time of process %d: %d\n", process[i]->id, process[i]->turnaround_time);
+
+	}
+
+	return;
 }
 
 int getMin(int*array, int count){
@@ -301,12 +493,14 @@ void insertR(int data){
         frontR++;
         rearR++;
         readyArray[rearR] = data;
+        itemCountR++;
         return;
     }
-    else
+    else{
         checkR(data);
+    }
     rearR++;
-		itemCountR++;
+	itemCountR++;
 }
 
 /* Function to check priority and place element */
@@ -327,7 +521,7 @@ void checkR(int data){
 
 /* Function to delete an element from queue */
 void deleteR(int data){
-		int i;
+	int i;
 
     if ((frontR==-1) && (rearR==-1)){
         printf("\nQueue is empty no elements to delete");
@@ -346,9 +540,9 @@ void deleteR(int data){
         if (rearR == -1)
             frontR = -1;
 
-				itemCountR--;
-				return;
-			}
+		itemCountR--;
+		return;
+		}
     }
     printf("\n%d not found in queue to delete", data);
 }
@@ -367,13 +561,14 @@ void insertB(int data){
     if ((frontB == -1) && (rearB == -1)){
         frontB++;
         rearB++;
-        readyArray[rearB] = data;
+        blockedArray[rearB] = data;
+        itemCountB++;
         return;
     }
     else
         checkB(data);
     rearB++;
-		itemCountB++;
+	itemCountB++;
 }
 
 /* Function to check priority and place element */
@@ -381,15 +576,15 @@ void checkB(int data){
     int i,j;
 
     for (i = 0; i <= rearB; i++){
-        if (data < readyArray[i]){
+        if (data < blockedArray[i]){
             for (j = rearB + 1; j > i; j--){
-                readyArray[j] = readyArray[j - 1];
+                blockedArray[j] = blockedArray[j - 1];
             }
-            readyArray[i] = data;
+            blockedArray[i] = data;
             return;
         }
     }
-    readyArray[i] = data;
+    blockedArray[i] = data;
 }
 
 /* Function to delete an element from queue */
@@ -401,12 +596,12 @@ void deleteB(int data){
         return;
     }
     for (i = 0; i <= rearB; i++){
-        if (data == readyArray[i]){
+        if (data == blockedArray[i]){
             for (; i < rearB; i++){
-                readyArray[i] = readyArray[i + 1];
+                blockedArray[i] = blockedArray[i + 1];
             }
 
-        readyArray[i] = -99;
+        blockedArray[i] = -99;
 
         rearB--;
 

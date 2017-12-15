@@ -10,6 +10,7 @@ typedef struct proc{
     char*state;
     int ready_time;
     int start_time;
+    int remaining_time;
     int turnaround_time;
 }proc;
 
